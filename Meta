@@ -1,0 +1,29 @@
+=meta: 0.0.2
+
+name: YAMLish
+version: 0.0.1
+abstract: A Perl 5 Port of Leon's Perl6 YAMLish Project
+homepage: http://yaml.org
+language: perl
+license: perl
+copyright: 2016
+
+author:
+  name: Ingy döt Net
+  email: ingy@cpan.org
+  homepage: http://ingy.net
+  github: ingydotnet
+  twitter: ingydotnet
+  freenode: ingy
+
+devel:
+  git: https://github.com/ingydotnet/yamlish-pm
+  bug: https://github.com/ingydotnet/yamlish-pm/issues
+  irc: irc.perl.org#yaml
+
+requires:
+  perl: 5.8.1
+
+test:
+  requires:
+    Test::YAML: 1.05
