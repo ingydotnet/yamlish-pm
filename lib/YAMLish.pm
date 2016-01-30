@@ -1,14 +1,16 @@
 use strict; use warnings;
 package YAMLish;
 use Pegex::Parser;
+use XXX;
 
 sub load {
     my ($class, $yaml) = @_;
     my $parser = Pegex::Parser->new(
         grammar => YAMLish::Grammar->new,
         receiver => YAMLish::Constructor->new,
-        # debug => 1,
+        debug => 1,
     );
+    # XXX $parser->grammar->tree;
     return $parser->parse($yaml);
 }
 
@@ -146,7 +148,7 @@ bare-document: 'XXX'
 #     ]
 #     <.line-end>
 #   }
-simple-document: inline
+simple-document: inline EOL?
 #   token begin-space {
 #     <?before <break>> <.ws>
 #   }
@@ -219,10 +221,15 @@ comment: / HASH '???' /
 #     | <single-key>
 #     | <double-key>
 #   }
+key:
+    inline-plain
 #   token plainfirst {
 #     <-[\-\?\:\,\[\]\{\}\#\&\*\!\|\>\'\"\%\@\`\ \t\x0a\x0d]>
 #     | <[\?\:\-]> <!before <.space> | <.line-break>>
 #   }
+plainfirst: /
+    [^ '-?:,[]{}#&*!|>"%@`' SINGLE TAB NL CR]
+/
 #   token plain {
 #     <properties>?
 #     <.plainfirst> [ <-[\x0a\x0d\:]> | ':' <!break> ]*
@@ -235,7 +242,10 @@ comment: / HASH '???' /
 #     ]
 #     <.space>*
 #   }
-inline-plain: / NS* /   # XXX
+inline-plain: /
+    plainfirst (: (! COLON SPACE) ANY)*
+/
+
 #   token single-key {
 #     "'" $<value>=[ [ <-['\x0a]> | "''" ]* ] "'"
 #   }
@@ -279,12 +289,19 @@ inline-plain: / NS* /   # XXX
 #   token inline-map {
 #     '{' <.ws> <pairlist> <.ws> '}'
 #   }
+inline-map:
+    '{' - pairlist - '}'
 #   rule pairlist {
+    # XXX should use %%. YAML allows trailing comma
 #     <pair>* % \,
 #   }
+pairlist:
+    pair* %% COMMA
 #   rule pair {
 #     <key> ':' [ <inline> || <inline=inline-plain> ]
 #   }
+pair:
+    key - COLON + (inline | inline-plain)
 # 
 #   token inline-list {
 #     '[' <.ws> <inline-list-inside> <.ws> ']'
@@ -330,6 +347,7 @@ inline-list-inside:
 #   }
 inline:
 | int
+| inline-map
 | inline-list
 | 'XXX'
 # 
@@ -716,3 +734,5 @@ sub got_yaml_stream {
 }
 
 1;
+
+#! vim: set lisp:
