@@ -8,7 +8,7 @@ sub load {
     my $parser = Pegex::Parser->new(
         grammar => YAMLish::Grammar->new,
         receiver => YAMLish::Constructor->new,
-        debug => 1,
+        # debug => 1,
     );
     # XXX $parser->grammar->tree;
     return $parser->parse($yaml);
@@ -243,7 +243,7 @@ plainfirst: /
 #     <.space>*
 #   }
 inline-plain: /
-    plainfirst (: (! COLON SPACE) ANY)*
+    plainfirst (: [^ NL CR COLON COMMA '[]{}' ] | COLON (! WS))* -
 /
 
 #   token single-key {
@@ -312,8 +312,7 @@ inline-list:
 #     [ <inline> || <inline=inline-plain> ]* % \,
 #   }
 inline-list-inside:
-    int* % COMMA
-    #( inline | inline-plain )* % COMMA
+    (inline | inline-plain)* %% COMMA
 # 
 #   token identifier-char {
 #     <[\x21..\x7E\x85\xA0..\xD7FF\xE000..\xFFFD\x10000..\x10FFFF]-[\,\[\]\{\}]>+
