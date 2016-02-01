@@ -8,7 +8,7 @@ sub load {
     my $parser = Pegex::Parser->new(
         grammar => YAMLish::Grammar->new,
         receiver => YAMLish::Constructor->new,
-        # debug => 1,
+        debug => 1,
     );
     # XXX $parser->grammar->tree;
     return $parser->parse($yaml);
@@ -41,31 +41,36 @@ yaml-stream:
     | explicit-document
     | simple-document
     )
-#     (
-#     | document-suffix+ document-prefix* any-document?
-#     | document-prefix* explicit-document
-#     )*
+    (
+    | document-suffix+ document-prefix* any-document?
+    | document-prefix* explicit-document
+    )*
+
 #   token document-prefix {
 #     <.bom>? <.comment-line>* <?{ $/.chars > 0 }>
 #   }
-document-prefix:
-    bom? comment-line*
+document-prefix: / bom? comment-line* /  # What is '<?{ $/.chars > 0 }>' ?
+
 #   token bom {
 #     "\x[FEFF]"
 #   }
-bom: / \xEE\xFF /
+bom: / (:\xEE\xFF) /
+
 #   token comment-line {
 #     <.space>* <.comment> <.line-end>
 #   }
-comment-line: SPACE* comment EOL
+comment-line: / space* comment EOL /
+
 #   token line-end {
 #     <line-break> | $
 #   }
 line-end: /(: EOL | EOS )/
+
 #   token document-suffix {
 #     <.document-end> <.comment>? <.line-end> <.comment-line>*
 #   }
-document-suffix: document-end comment? line-end comment-line*
+document-suffix: / document-end comment? line-end comment-line* /
+
 #   token any-document {
 #     | <directive-document>
 #     | <explicit-document>
@@ -75,6 +80,7 @@ any-document:
     | directive-document
     | explicit-document
     | bare-document
+
 #   token directive-document {
 #     <directives>
 #     {  }
@@ -84,23 +90,28 @@ any-document:
 directive-document:
     directives
     explicit-document
+
 #   token directives {
 #     [ '%' [ <yaml-directive> | <tag-directive> ] <.space>* <.line-break> ]+
 #   }
 directives: / ( PERCENT (: yaml-directive | tag-directive ) SPACE* BREAK ) /
+
 #   token yaml-directive {
 #     'YAML' <.space>+ $<version>=[ <[0..9]>+ \. <[0..9]>+ ]
 #   }
 yaml-directive: / 'YAML' SPACE+ ( DIGIT+ '.' DIGITS ) / # ???
+
 #   token tag-directive {
 #     'TAG' <.space>+ <tag-handle> <.space>+ <tag-prefix>
 #   }
 tag-directive: / 'TAG' SPACE+ tag-handle SPACE+ tag-prefix /
+
 #   token tag-prefix {
 #     | '!' <.uri-char>+
 #     | <.tag-char> <.uri-char>*
 #   }
 tag-prefix: /(: '!' uri-char+ | tag-char uri-char* )/
+
 #   token explicit-document  {
 #     <.directives-end>
 #     [
@@ -114,18 +125,25 @@ explicit-document:
     | bare-document
     | empty-document
     )
+
 #   token empty-document {
 #     <.comment-line>* <?before <document-suffix> | <document-prefix> | $>
 #   }
-empty-document: 'XXX'
+empty-document: /
+    comment-line*
+    (= document-suffix | document-prefix | EOS)
+/
+
 #   token directives-end {
 #     '---'
 #   }
 directives-end: '---'
+
 #   token document-end {
 #     '...'
 #   }
 document-end: '...'
+
 #   token bare-document {
 #     [
 #     | <.newline> <!before '---' | '...'> <map('')>
@@ -137,6 +155,7 @@ document-end: '...'
 #     <.line-end>
 #   }
 bare-document: 'XXX'
+
 #   token simple-document {
 #     <!before '---' | '...'>
 #     [
@@ -149,39 +168,48 @@ bare-document: 'XXX'
 #     <.line-end>
 #   }
 simple-document: inline EOL?
+
 #   token begin-space {
 #     <?before <break>> <.ws>
 #   }
-# 
+
 #   token ws {
 #     <.space>*
 #     [ [ <!after <.alnum>> <.comment> ]? <.line-break> <.space>* ]*
 #   }
+ws: / space /
+
 #   token block-ws(Str $indent) {
 #     <.space>*
 #     [ <!after <.alnum>> <.comment> <.line-break> $indent <.space>* ]*
 #   }
+
 #   token newline {
 #     [ <.space>* <.comment>? <.line-break> ]+
 #   }
+
 #   token space {
 #     <[\ \t]>
 #   }
+space: /[ ' ' TAB ]/
+
 #   token comment {
 #     '#' <-line-break>*
 #   }
-comment: / HASH '???' /
+comment: / HASH ANY* /
+
 #   token line-break {
 #     <[ \c[LF] \r \r\c[LF]] >
 #   }
+
 #   token break {
 #     <.line-break> | <.space>
 #   }
-# 
+
 #   token nb {
 #     <[\x09\x20..\x10FFFF]>
 #   }
-# 
+
 #   token block(Str $indent, Int $minimum-indent) {
 #     <properties>?
 #     <.newline>
@@ -190,19 +218,21 @@ comment: / HASH '???' /
 #     $new-indent
 #     [ <value=list($new-indent)> | <value=map($new-indent)> ]
 #   }
-# 
+
 #   token map(Str $indent) {
 #     <map-entry($indent)>+ % [ <.newline> $indent ]
 #   }
+
 #   token map-entry(Str $indent) {
 #       <key> <.space>* ':' <?break> <.block-ws($indent)> <element($indent, 0)>
 #     | '?' <.block-ws($indent)> <key=.element($indent, 0)> <.newline> $indent
 #       <.space>* ':' <.space>+ <element($indent, 0)>
 #   }
-# 
+
 #   token list(Str $indent) {
 #     <list-entry($indent)>+ % [ <.newline> $indent ]
 #   }
+
 #   token list-entry(Str $indent) {
 #     '-' <?break>
 #     [
@@ -210,12 +240,13 @@ comment: / HASH '???' /
 #       || <.block-ws($indent)> <element($indent, 1)> <.comment>?
 #     ]
 #   }
+
 #   token cuddly-list-entry(Str $indent) {
 #     :my $new-indent;
 #     $<sp>=' '+ { $new-indent = $indent ~ ' ' ~ $<sp> }
 #     [ <element=map($new-indent)> | <element=list($new-indent)> ]
 #   }
-# 
+
 #   token key {
 #     | <inline-plain>
 #     | <single-key>
@@ -223,6 +254,7 @@ comment: / HASH '???' /
 #   }
 key:
     inline-plain
+
 #   token plainfirst {
 #     <-[\-\?\:\,\[\]\{\}\#\&\*\!\|\>\'\"\%\@\`\ \t\x0a\x0d]>
 #     | <[\?\:\-]> <!before <.space> | <.line-break>>
@@ -230,6 +262,7 @@ key:
 plainfirst: /
     [^ '-?:,[]{}#&*!|>"%@`' SINGLE TAB NL CR]
 /
+
 #   token plain {
 #     <properties>?
 #     <.plainfirst> [ <-[\x0a\x0d\:]> | ':' <!break> ]*
@@ -249,25 +282,31 @@ inline-plain: /
 #   token single-key {
 #     "'" $<value>=[ [ <-['\x0a]> | "''" ]* ] "'"
 #   }
+
 #   token double-key {
 #     \" ~ \" [ <str=.quoted-bare> | \\ <str=.quoted-escape> | <str=.space> ]*
 #   }
-# 
+
 #   token single-quoted {
 #     "'" $<value>=[ [ <-[']> | "''" ]* ] "'"
 #   }
+
 #   token double-quoted {
 #     \" ~ \" [ <str=.quoted-bare> | \\ <str=.quoted-escape> | <str=foldable-whitespace> | <str=space> ]*
 #   }
+
 #   token quoted-bare {
 #     <-space-[\"\\\n]>+
 #   }
+
 #   token quoted-escape {
 #     <["\\/abefnrvtzNLP_\ ]> | x <xdigit>**2 | u <xdigit>**4 | U<xdigit>**8
 #   }
+
 #   token foldable-whitespace {
 #     <.space>* <.line-break> <.space>*
 #   }
+
 #   token block-string(Str $indent) {
 #     <properties>?
 #     $<kind>=<[\|\>]> <.space>*
@@ -276,54 +315,60 @@ inline-plain: /
 #     <?before $indent $<sp>=' '+ { $new-indent = $indent ~ $<sp> }>
 #     [ $new-indent $<content>=[ \N* ] ]+ % <.line-break>
 #   }
-# 
+
 #   token yes {
 #     [ :i y | yes | true | on ] <|w>
 #   }
+
 #   token no {
 #     [ :i n | no | false | off ] <|w>
 #   }
+
 #   token boolean {
 #     <yes> | <no>
 #   }
+
 #   token inline-map {
 #     '{' <.ws> <pairlist> <.ws> '}'
 #   }
 inline-map:
-    '{' - pairlist - '}'
+    '{' ws pairlist ws '}'
+
 #   rule pairlist {
     # XXX should use %%. YAML allows trailing comma
 #     <pair>* % \,
 #   }
 pairlist:
     pair* %% COMMA
+
 #   rule pair {
 #     <key> ':' [ <inline> || <inline=inline-plain> ]
 #   }
 pair:
     key - COLON + (inline | inline-plain)
-# 
+
 #   token inline-list {
 #     '[' <.ws> <inline-list-inside> <.ws> ']'
 #   }
 inline-list:
     '[' - inline-list-inside - ']'
+
 #   rule inline-list-inside {
 #     [ <inline> || <inline=inline-plain> ]* % \,
 #   }
 inline-list-inside:
     (inline | inline-plain)* %% COMMA
-# 
+
 #   token identifier-char {
 #     <[\x21..\x7E\x85\xA0..\xD7FF\xE000..\xFFFD\x10000..\x10FFFF]-[\,\[\]\{\}]>+
 #   }
+
 #   token identifier {
 #     <identifier-char>+ <!before <identifier-char> >
 #   }
-# 
+
 #   token inline {
 #     <properties>?
-# 
 #     [
 #     | <value=int>
 #     | <value=hex>
@@ -349,18 +394,19 @@ inline:
 | inline-map
 | inline-list
 | 'XXX'
-# 
+
 #   token properties {
 #     | <anchor> <.space>+ [ <tag> <.space>+ ]?
 #     | <tag> <.space>+ [ <anchor> <.space>+ ]?
 #   }
-# 
+
 #   token int {
 #     '-'?
 #     [ 0 | <[1..9]> <[0..9]>* ]
 #     <|w>
 #   }
 int: / '-'? (: 0 | [1-9] DIGIT* ) /
+
 #   token hex {
 #     :i
 #     '-'?
@@ -368,6 +414,7 @@ int: / '-'? (: 0 | [1-9] DIGIT* ) /
 #     $<value>=[ <[0..9A..F]>+ ]
 #     <|w>
 #   }
+
 #   token oct {
 #     :i
 #     '-'?
@@ -375,12 +422,14 @@ int: / '-'? (: 0 | [1-9] DIGIT* ) /
 #     $<value>=[ <[0..7]>+ ]
 #     <|w>
 #   }
+
 #   token rat {
 #     '-'?
 #     [ 0 | <[1..9]> <[0..9]>* ]
 #     \. <[0..9]>+
 #     <|w>
 #   }
+
 #   token float {
 #     '-'?
 #     [ 0 | <[1..9]> <[0..9]>* ]
@@ -388,83 +437,96 @@ int: / '-'? (: 0 | [1-9] DIGIT* ) /
 #     [ <[eE]> [\+|\-]? <[0..9]>+ ]?
 #     <|w>
 #   }
+
 #   token inf {
 #     :i
 #     $<sign>='-'?
 #     '.inf'
 #   }
+
 #   token nan {
 #     :i '.nan'
 #   }
+
 #   token null {
 #     '~'
 #   }
+
 #   token alias {
 #     '*' <identifier>
 #   }
+
 #   token datetime {
 #     $<year>=<[0..9]>**4 '-' $<month>=<[0..9]>**2 '-' $<day>=<[0..9]>**2
 #     [ ' ' | 'T' ]
 #     $<hour>=<[0..9]>**2 '-' $<minute>=<[0..9]>**2 '-' $<seconds>=<[0..9]>**2
 #     $<offset>=[ <[+-]> <[0..9]>**1..2]
 #   }
+
 #   token date {
 #     $<year>=<[0..9]>**4 '-' $<month>=<[0..9]>**2 '-' $<day>=<[0..9]>**2
 #   }
-# 
+
 #   token element(Str $indent, Int $minimum-indent) {
 #     [  [ <value=block($indent, $minimum-indent)> | <value=block-string($indent)> ]
 #     |  <value=inline> <.comment>?
 #     || <value=plain> <.comment>?
 #     ]
 #   }
+
 #   token anchor {
 #     '&' <identifier>
 #   }
-# 
+
 #   token tag {
 #     | <value=verbatim-tag>
 #     | <value=shorthand-tag>
 #     | <value=non-specific-tag>
 #   }
-# 
+
 #   token verbatim-tag {
 #     '!<' <uri-char>+ '>'
 #   }
+
 #   token uri-char {
 #     <char=uri-escaped-char> | <char=uri-real-char>
 #   }
 uri-char: /(: uri-escaped-char | uri-real-char )/
+
 #   token uri-escaped-char {
 #     :i '%' $<hex>=<[ 0..9 A..F ]>**2
 #   }
 uri-escaped-char: / HASH HEX{2} /
+
 #   token uri-real-char {
 #     <[ 0..9 A..Z a..z \-#;/?:@&=+$,_.!~*'()\[\] ]>
 #   }
 uri-real-char: /[ WORD SINGLE '-#;/?:@&=+$,.!~*()[]' ]/    #'
-# 
+
 #   token shorthand-tag {
 #     <tag-handle> $<tag-name>=[ <tag-char>+ ]
 #   }
+
 #   token tag-handle {
 #     '!' [ <[ A..Z a..z 0..9 ]>* '!' ]?
 #   }
 tag-handle: / '!' ( ALNUM* )' !'? / # ???
 #     '!' [ <[ A..Z a..z 0..9 ]>* '!' ]?
+
 #   token tag-real-char {
 #     <[ 0..9 A..Z a..z \-#;/?:@&=+$_.~*'() ]>
 #   }
 tag-real-char: /[ WORD SINGLE '-#;/?:@&=+$.~*()' ]/
+
 #   token tag-char {
 #     [ <char=uri-escaped-char> | <char=tag-real-char> ]
 #   }
 tag-char: /(: uri-escaped-char tag-real-char )/
-# 
+
 #   token non-specific-tag {
 #     '!'
 #   }
-# 
+
 #   class Actions {
 #     method TOP($/) {
 #       make ( @<document>».ast );
